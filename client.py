@@ -109,11 +109,13 @@ def clean(db = 'proj656', table):
 #Analyze data
 #Parameter includes database name, table name,all the parameter required...TODO
 def analyze(db = 'proj656', table):
+	#Check if data is cleaned
 	print("TODO: Analyze Data")
 
 #Validate analysis
 #Parameter includes database name, table name,analysis result...TODO
 def validate(db = 'proj656', table, analysis):
+	#Check if data is analyzed
 	print("TODO: Validate Data")
 
 

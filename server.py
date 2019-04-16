@@ -72,6 +72,31 @@ def start_tcp_server(ip, port):
     client.close()
     sock.close() 
     print(" close client connect ")
+
+def revert():
+
+def clean():
+    #identify forms of consistency and sanity checking
+    #determine if there are problems with portions of data using query
+    #implement solution such as ignore and create new table for analysis, or adjusting analysis in order to compensate for data skew(long tail of data distribution)
+    #parameter should include threshold and identified by client
+    if True: # not as expected 
+        revert()
+
+#Analyze Data include detailed and careful study of particular things 
+def analyze():
+    #decision tree classifier
+    # a priori algo
+    #using sql
+    #Minimized return to Client, only the result
+    print("TODO")
+
+def validate():
+    #divide data into two at random.
+    #first half would be used to analysis and predict for the oter half
+    #The other half would be used to validate or refute hypothesis
+    #return should be validated or not, probably with some reason
+
  
  
  
