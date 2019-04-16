@@ -5,7 +5,7 @@ receive_count = 0
 import pymysql as ps
 
 class MysqlHelper:
-    def __init__(self, host, user, password, database, charset):
+    def __init__(self, host = 'localhost', user = 'root', password = 'root', database = 'proj656', charset = 'utf8'):
         self.host = host
         self.user = user
         self.password = password
@@ -44,7 +44,7 @@ class MysqlHelper:
 			print('find error')
 			
 			
-def start_tcp_client(ip,port):
+def start_tcp_client(ip,port): 
 	###create socket
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -90,17 +90,33 @@ def start_tcp_client(ip,port):
 		break
  
         s.close()
+
 def add():
-	
-	mh = MysqlHelper('localhost', 'root', 'root', 'as2', 'utf8')
+	mh = MysqlHelper('localhost', 'root', 'root', 'proj656', 'utf8')
 	sql = "insert into courses(title) values(%s)"
 	mh.cud(sql, ('test1'))
 	
 def find():
-	mh = MysqlHelper('localhost', 'root', 'root', 'as2', 'utf8')
+	mh = MysqlHelper('localhost', 'root', 'root', 'proj656', 'utf8')
 	sql = "select * from courses where title=%s"
 	print(mh.find(sql, 'test1'))
-	
+
+#Clean Data
+#Parameter includes database name, table name,all the parameter required...TODO
+def clean(db = 'proj656', table):
+	print("TODO: Clean Data")
+
+#Analyze data
+#Parameter includes database name, table name,all the parameter required...TODO
+def analyze(db = 'proj656', table):
+	print("TODO: Analyze Data")
+
+#Validate analysis
+#Parameter includes database name, table name,analysis result...TODO
+def validate(db = 'proj656', table, analysis):
+	print("TODO: Validate Data")
+
+
 def create_menu():
 		print "1: modify"
 		print "2: search"
