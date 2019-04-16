@@ -126,6 +126,8 @@ def create_menu():
 			add()
 		elif input == "2":
 			find()
+		else:
+			print("You should not be here, Report the detail how you reach this line to my lovely cat")
 if __name__=='__main__':
 	create_menu()
 	start_tcp_client('127.0.0.1',6000)
