@@ -117,6 +117,13 @@ def start_tcp_server(ip, port):
     sock.close() 
     print(" close client connect ")
 
+def consist_check(firstTable,secondTable,idName):
+    mh = MysqlHelper('localhost', 'root', 'root', 'proj656', 'utf8')
+    sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.{2} FROM {0} LEFT JOIN {1} ON {0}.{2} = {1}.id WHERE {1}.id IS NULL) as tmp on {0}.{2} = tmp.{2}".format(firstTable,secondTable,idName)
+    results = mh.cud(sql)
+    return results
+
+
 def revert():
     #Revert from backup table
 
@@ -124,11 +131,37 @@ def clean():
     # 1. Create New Table called temp to store all the change 
     # 2. Peroform Data Clean
     # 3. Commit change and update table if success
-    # 4. Delete temp if failed 
+    # 4. Delete temp if failed
+
+
+    results = consist_check('business_categories','business','business_id')
+    results = consist_check('checkin','business','business_id')
+    results = consist_check('review','business','business_id')
+    results = consist_check('tip','business','business_id')
+
+    results = consist_check('user_elite','user','user_id')
+    results = consist_check('user_friends','user','user_id')
+    results = consist_check('review','user','user_id')
 
     mh = MysqlHelper('localhost', 'root', 'root', 'proj656', 'utf8')
-    sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.business_id FROM {0} LEFT JOIN business ON {0}.business_id = business.id WHERE business.id IS NULL) as tmp on {0}.business_id = tmp.business_id".format('review')
+    sql = "DELETE FROM user_elite WHERE year < 2004 OR year > 2019"
     results = mh.cud(sql)
+    sql = "DELETE FROM review WHERE date < '2004-09-30' OR date > '2019-04-27'"
+    results = mh.cud(sql)
+    sql = "DELETE FROM tip WHERE date < '2004-09-30' OR date > '2019-04-27'"
+    results = mh.cud(sql)
+    sql = "DELETE FROM user WHERE yelping_since < '2004-09-30' OR yelping_since > '2019-04-27'"
+
+    # sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.business_id FROM {0} LEFT JOIN business ON {0}.business_id = business.id WHERE business.id IS NULL) as tmp on {0}.business_id = tmp.business_id".format('business_categories')
+    # results = mh.cud(sql)
+    # sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.business_id FROM {0} LEFT JOIN business ON {0}.business_id = business.id WHERE business.id IS NULL) as tmp on {0}.business_id = tmp.business_id".format('checkin')
+    # results = mh.cud(sql) 
+    # sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.business_id FROM {0} LEFT JOIN business ON {0}.business_id = business.id WHERE business.id IS NULL) as tmp on {0}.business_id = tmp.business_id".format('review')
+    # results = mh.cud(sql)
+    # sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.business_id FROM {0} LEFT JOIN business ON {0}.business_id = business.id WHERE business.id IS NULL) as tmp on {0}.business_id = tmp.business_id".format('tip')
+    # results = mh.cud(sql)
+
+
 
 
 
