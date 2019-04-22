@@ -152,33 +152,21 @@ def clean():
     results = mh.cud(sql)
     sql = "DELETE FROM user WHERE yelping_since < '2004-09-30' OR yelping_since > '2019-04-27'"
 
-    # sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.business_id FROM {0} LEFT JOIN business ON {0}.business_id = business.id WHERE business.id IS NULL) as tmp on {0}.business_id = tmp.business_id".format('business_categories')
-    # results = mh.cud(sql)
-    # sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.business_id FROM {0} LEFT JOIN business ON {0}.business_id = business.id WHERE business.id IS NULL) as tmp on {0}.business_id = tmp.business_id".format('checkin')
-    # results = mh.cud(sql) 
-    # sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.business_id FROM {0} LEFT JOIN business ON {0}.business_id = business.id WHERE business.id IS NULL) as tmp on {0}.business_id = tmp.business_id".format('review')
-    # results = mh.cud(sql)
-    # sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.business_id FROM {0} LEFT JOIN business ON {0}.business_id = business.id WHERE business.id IS NULL) as tmp on {0}.business_id = tmp.business_id".format('tip')
-    # results = mh.cud(sql)
-
-
-
-
-
     #identify forms of consistency and sanity checking
     #determine if there are problems with portions of data using query
     #implement solution such as ignore and create new table for analysis, or adjusting analysis in order to compensate for data skew(long tail of data distribution)
     #parameter should include threshold and identified by client
     if False: # not as expected 
         mh.db.rollback()
-        revert()
+    else:
+        mh.db.commit()
 
 
 
 #Analyze Data include detailed and careful study of particular things 
 def analyze():
     #decision tree classifier
-    # a priori algo
+    # a priori algorithm
     #using sql
     #Minimized return to Client, only the result
     print("TODO")
@@ -188,6 +176,8 @@ def validate():
     #first half would be used to analysis and predict for the oter half
     #The other half would be used to validate or refute hypothesis
     #return should be validated or not, probably with some reason
+    print("TODO")
+
 
  
  
