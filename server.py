@@ -3,6 +3,7 @@ import sys
 import struct
 import pandas as pd
 import pymysql
+from apyori import apriori
  
  
 SEND_BUF_SIZE = 256
@@ -53,8 +54,9 @@ class MysqlHelper:
             self.close()
             results = self.curs.fetchall()
             return results
-        except:
+        except ProgrammingError as e:
             print('find error')
+            return e
  
  
 def start_tcp_server(ip, port):
@@ -119,7 +121,7 @@ def start_tcp_server(ip, port):
 
 def consist_check(firstTable,secondTable,idName):
     mh = MysqlHelper('localhost', 'root', 'root', 'proj656', 'utf8')
-    sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.{2} FROM {0} LEFT JOIN {1} ON {0}.{2} = {1}.id WHERE {1}.id IS NULL) as tmp on {0}.{2} = tmp.{2}".format(firstTable,secondTable,idName)
+    sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.{2} FROM {0} LEFT JOIN {1} ON {0}.{2} = {1}.{2} WHERE {1}.{2} IS NULL) as tmp on {0}.{2} = tmp.{2}".format(firstTable,secondTable,idName)
     results = mh.cud(sql)
     return results
 
@@ -127,23 +129,55 @@ def consist_check(firstTable,secondTable,idName):
 def revert():
     #Revert from backup table
 
-def clean():
+def clean(table='',attr='',condition,sql = '',consistency = True):
     # 1. Create New Table called temp to store all the change 
     # 2. Peroform Data Clean
     # 3. Commit change and update table if success
     # 4. Delete temp if failed
+    
+    mh = MysqlHelper('localhost', 'root', 'root', 'proj656', 'utf8')
 
+    if(sql):
+        mh.cud(sql)
+        return
+    else:
+        #do following
+
+    #########################################################
+    #Default Cleanup Process
+    sql = "ALTER TABLE business ADD INDEX (business_id);"
+    mh.cud(sql)
+    sql = "ALTER TABLE business_categories ADD INDEX (business_id);"
+    mh.cud(sql)
+    sql = "ALTER TABLE checkin ADD INDEX (business_id);"
+    mh.cud(sql)
+    sql = "ALTER TABLE review ADD INDEX (business_id);"
+    mh.cud(sql)
+    sql = "ALTER TABLE tip ADD INDEX (business_id);"
+    mh.cud(sql)
 
     results = consist_check('business_categories','business','business_id')
     results = consist_check('checkin','business','business_id')
     results = consist_check('review','business','business_id')
     results = consist_check('tip','business','business_id')
 
+    sql = "ALTER TABLE user ADD INDEX (user_id);"
+    mh.cud(sql)
+    sql = "ALTER TABLE user_elite ADD INDEX (user_id);"
+    mh.cud(sql)
+    sql = "ALTER TABLE user_friends ADD INDEX (user_id);"
+    mh.cud(sql)
+    sql = "ALTER TABLE tip ADD INDEX (user_id);"
+    mh.cud(sql)
+    sql = "ALTER TABLE review ADD INDEX (user_id);"
+    mh.cud(sql)
+
     results = consist_check('user_elite','user','user_id')
     results = consist_check('user_friends','user','user_id')
+    results = consist_check('tip','user','user_id')
     results = consist_check('review','user','user_id')
 
-    mh = MysqlHelper('localhost', 'root', 'root', 'proj656', 'utf8')
+    
     sql = "DELETE FROM user_elite WHERE year < 2004 OR year > 2019"
     results = mh.cud(sql)
     sql = "DELETE FROM review WHERE date < '2004-09-30' OR date > '2019-04-27'"
@@ -151,11 +185,18 @@ def clean():
     sql = "DELETE FROM tip WHERE date < '2004-09-30' OR date > '2019-04-27'"
     results = mh.cud(sql)
     sql = "DELETE FROM user WHERE yelping_since < '2004-09-30' OR yelping_since > '2019-04-27'"
+    ################################################
 
     #identify forms of consistency and sanity checking
     #determine if there are problems with portions of data using query
     #implement solution such as ignore and create new table for analysis, or adjusting analysis in order to compensate for data skew(long tail of data distribution)
     #parameter should include threshold and identified by client
+    if(table && attr && threshold):
+        sql = 'SELECT * FROM {0} WHERE {1} {2}'.format(table,attr,condition)
+        results = mh.find(sql)
+        #check if results is error, if yes, ask client for choices
+
+
     if False: # not as expected 
         mh.db.rollback()
     else:
@@ -167,9 +208,8 @@ def clean():
 def analyze():
     #decision tree classifier
     # a priori algorithm
-    #using sql
     #Minimized return to Client, only the result
-    print("TODO")
+    
 
 def validate():
     #divide data into two at random.
