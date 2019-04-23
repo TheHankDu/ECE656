@@ -56,7 +56,9 @@ class MysqlHelper:
             return results
         except ProgrammingError as e:
             print('find error')
-            return e
+            return 1
+        except MySQLError as e:
+            return e.args[0]
  
  
 def start_tcp_server(ip, port):
@@ -138,7 +140,7 @@ def clean(table='',attr='',condition,sql = '',consistency = True):
     mh = MysqlHelper('localhost', 'root', 'root', 'proj656', 'utf8')
 
     if(sql):
-        mh.cud(sql)
+        result = mh.cud(sql)
         return
     else:
         #do following
@@ -206,7 +208,6 @@ def clean(table='',attr='',condition,sql = '',consistency = True):
 
 #Analyze Data include detailed and careful study of particular things 
 def analyze():
-    #decision tree classifier
     # a priori algorithm
     #Minimized return to Client, only the result
     
