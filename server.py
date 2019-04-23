@@ -193,7 +193,7 @@ def clean(table='',attr='',condition,sql = '',consistency = True):
     #determine if there are problems with portions of data using query
     #implement solution such as ignore and create new table for analysis, or adjusting analysis in order to compensate for data skew(long tail of data distribution)
     #parameter should include threshold and identified by client
-    if(table && attr && threshold):
+    if(table && attr && condition):
         sql = 'SELECT * FROM {0} WHERE {1} {2}'.format(table,attr,condition)
         results = mh.find(sql)
         #check if results is error, if yes, ask client for choices
