@@ -1,9 +1,11 @@
 import socket
 import sys
 import struct
-import pandas as pd
 import pymysql
+
 from apyori import apriori
+import numpy as np
+import pandas as pd
  
  
 SEND_BUF_SIZE = 256
@@ -15,7 +17,7 @@ Communication_Count: int = 0
 receive_count : int = 0
 
 class MysqlHelper:
-    def __init__(self, host = 'localhost', user = 'root', password = 'root', database = 'proj656', charset = 'utf8'):
+    def __init__(self, host = 'localhost', user = 'root', password = 'root', database = 'lahman2016', charset = 'utf8'):
         self.host = host
         self.user = user
         self.password = password
@@ -121,9 +123,13 @@ def start_tcp_server(ip, port):
     sock.close() 
     print(" close client connect ")
 
-def consist_check(firstTable,secondTable,idName):
-    mh = MysqlHelper('localhost', 'root', 'root', 'proj656', 'utf8')
+def consist_check(mh,firstTable,secondTable,idName):
     sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.{2} FROM {0} LEFT JOIN {1} ON {0}.{2} = {1}.{2} WHERE {1}.{2} IS NULL) as tmp on {0}.{2} = tmp.{2}".format(firstTable,secondTable,idName)
+    results = mh.cud(sql)
+    return results
+
+def add_index(mh,table,indexName):
+    sql = "ALTER TABLE {0} ADD INDEX ({1});".format(table,indexName)
     results = mh.cud(sql)
     return results
 
@@ -131,13 +137,13 @@ def consist_check(firstTable,secondTable,idName):
 def revert():
     #Revert from backup table
 
-def clean(table='',attr='',condition,sql = '',consistency = True):
+def clean(table='',attr='',condition,sql = '',consistency = True,commit = False):
     # 1. Create New Table called temp to store all the change 
     # 2. Peroform Data Clean
     # 3. Commit change and update table if success
     # 4. Delete temp if failed
     
-    mh = MysqlHelper('localhost', 'root', 'root', 'proj656', 'utf8')
+    mh = MysqlHelper('localhost', 'root', 'root', 'lahman2016', 'utf8')
 
     if(sql):
         result = mh.cud(sql)
@@ -147,16 +153,29 @@ def clean(table='',attr='',condition,sql = '',consistency = True):
 
     #########################################################
     #Default Cleanup Process
-    sql = "ALTER TABLE business ADD INDEX (business_id);"
-    mh.cud(sql)
-    sql = "ALTER TABLE business_categories ADD INDEX (business_id);"
-    mh.cud(sql)
-    sql = "ALTER TABLE checkin ADD INDEX (business_id);"
-    mh.cud(sql)
-    sql = "ALTER TABLE review ADD INDEX (business_id);"
-    mh.cud(sql)
-    sql = "ALTER TABLE tip ADD INDEX (business_id);"
-    mh.cud(sql)
+    results = add_index(mh,Master,playerID)
+    results = add_index(mh,Batting,playerID)
+    results = add_index(mh,Pitching,playerID)
+    results = add_index(mh,Fielding,playerID)
+    results = add_index(mh,AllstarFull,playerID)
+    results = add_index(mh,HallOfFame,playerID)
+    results = add_index(mh,Managers,playerID)
+    results = add_index(mh,FieldingOF,playerID)
+    results = add_index(mh,BattingPost,playerID)
+    results = add_index(mh,PitchingPost,playerID)
+    results = add_index(mh,ManagersHalf,playerID)
+    results = add_index(mh,Salaries,playerID)
+    results = add_index(mh,AwardsManagers,playerID)
+    results = add_index(mh,AwardsPlayers,playerID)
+    results = add_index(mh,AwardsShareManagers,playerID)
+    results = add_index(mh,AwardsSharePlayers,playerID)
+    results = add_index(mh,FieldingPost,playerID)
+    results = add_index(mh,Appearances,playerID)
+    results = add_index(mh,CollegePlaying,playerID)
+    results = add_index(mh,FieldingOFsplit,playerID)
+
+
+
 
     results = consist_check('business_categories','business','business_id')
     results = consist_check('checkin','business','business_id')
@@ -199,17 +218,19 @@ def clean(table='',attr='',condition,sql = '',consistency = True):
         #check if results is error, if yes, ask client for choices
 
 
-    if False: # not as expected 
-        mh.db.rollback()
-    else:
+    if commit: # not as expected 
         mh.db.commit()
+    else:
+        mh.db.rollback()
 
 
 
 #Analyze Data include detailed and careful study of particular things 
 def analyze():
-    # a priori algorithm
-    #Minimized return to Client, only the result
+    # a priori algorithm for operation hours on the rating of business
+    # joining business,business_categories
+
+    # Minimized return to Client, only the result
     
 
 def validate():
