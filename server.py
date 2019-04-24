@@ -3,9 +3,11 @@ import sys
 import struct
 import pymysql
 
-from apyori import apriori
+#from apyori import apriori
 import numpy as np
 import pandas as pd
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import train_test_split
  
  
 SEND_BUF_SIZE = 256
@@ -135,21 +137,18 @@ def add_index(mh,table,indexName):
 
 
 def revert():
+    return
     #Revert from backup table
 
-def clean(table='',attr='',condition,sql = '',consistency = True,commit = False):
-    # 1. Create New Table called temp to store all the change 
-    # 2. Peroform Data Clean
-    # 3. Commit change and update table if success
-    # 4. Delete temp if failed
-    
+# 1. Create New Table called temp to store all the change 
+# 2. Peroform Data Clean
+# 3. Commit change and update table if success
+# 4. revert if client does not want to
+def clean(table='',attr='',sql = '',condition ='',consistency = True,commit = False):
     mh = MysqlHelper('localhost', 'root', 'root', 'lahman2016', 'utf8')
-
     if(sql):
         result = mh.cud(sql)
         return
-    else:
-        #do following
 
     #########################################################
     #Default Cleanup Process
@@ -174,21 +173,25 @@ def clean(table='',attr='',condition,sql = '',consistency = True,commit = False)
     results = add_index(mh,'CollegePlaying','playerID')
     results = add_index(mh,'FieldingOFsplit','playerID')
 
-    results = consist_check('business_categories','business','business_id')
+    results = add_index(mh,'Team','teamID')
+    results = add_index(mh,'Batting','teamID')
+    results = add_index(mh,'Pitching','teamID')
+    results = add_index(mh,'Fielding','teamID')
+    results = add_index(mh,'AllstarFull','teamID')
+    results = add_index(mh,'Managers','teamID')
+    results = add_index(mh,'BattingPost','teamID')
+    results = add_index(mh,'PitchingPost','teamID')
+    results = add_index(mh,'FieldingPost','teamID')
+    results = add_index(mh,'ManagersHalf','teamID')
+    results = add_index(mh,'TeamsHalf','teamID')
+    results = add_index(mh,'Salaries','teamID')
+    results = add_index(mh,'Appearances','teamID')
+
+
+    results = consist_check('business_categories','business','palyerID')
     results = consist_check('checkin','business','business_id')
     results = consist_check('review','business','business_id')
     results = consist_check('tip','business','business_id')
-
-    sql = "ALTER TABLE user ADD INDEX (user_id);"
-    mh.cud(sql)
-    sql = "ALTER TABLE user_elite ADD INDEX (user_id);"
-    mh.cud(sql)
-    sql = "ALTER TABLE user_friends ADD INDEX (user_id);"
-    mh.cud(sql)
-    sql = "ALTER TABLE tip ADD INDEX (user_id);"
-    mh.cud(sql)
-    sql = "ALTER TABLE review ADD INDEX (user_id);"
-    mh.cud(sql)
 
     results = consist_check('user_elite','user','user_id')
     results = consist_check('user_friends','user','user_id')
@@ -196,20 +199,17 @@ def clean(table='',attr='',condition,sql = '',consistency = True,commit = False)
     results = consist_check('review','user','user_id')
 
     
-    sql = "DELETE FROM user_elite WHERE year < 2004 OR year > 2019"
+    sql = "DELETE FROM Master WHERE birthYear == '' OR deathYear == ''"
     results = mh.cud(sql)
-    sql = "DELETE FROM review WHERE date < '2004-09-30' OR date > '2019-04-27'"
+    sql = "DELETE FROM HallOfFame WHERE inducted = 'N'"
     results = mh.cud(sql)
-    sql = "DELETE FROM tip WHERE date < '2004-09-30' OR date > '2019-04-27'"
-    results = mh.cud(sql)
-    sql = "DELETE FROM user WHERE yelping_since < '2004-09-30' OR yelping_since > '2019-04-27'"
     ################################################
 
     #identify forms of consistency and sanity checking
     #determine if there are problems with portions of data using query
     #implement solution such as ignore and create new table for analysis, or adjusting analysis in order to compensate for data skew(long tail of data distribution)
     #parameter should include threshold and identified by client
-    if(table && attr && condition):
+    if(table & attr & condition):
         sql = 'SELECT * FROM {0} WHERE {1} {2}'.format(table,attr,condition)
         results = mh.find(sql)
         #check if results is error, if yes, ask client for choices
@@ -222,8 +222,9 @@ def clean(table='',attr='',condition,sql = '',consistency = True,commit = False)
 
 
 
-#Analyze Data include detailed and careful study of particular things 
+# Predict who will be inducted into Hall of Fame
 def analyze():
+    print("TODO")
     # a priori algorithm for operation hours on the rating of business
     # joining business,business_categories
 
