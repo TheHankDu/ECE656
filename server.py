@@ -108,22 +108,16 @@ def start_tcp_server(ip, port):
         print("\r\n")
         msg = client.recv(16384)
         msg_de = msg.decode('utf-8')
-        print("recv len is : [%d]" % len(msg_de))
-        print("###############################")
-        print(msg_de)
-        print("###############################")
         
-        if msg_de == 'disconnect':break
+        if msg_de == '4':
+            print("Client Requested to Disconnect, Disconnecting...")
+            break
  
-        msg = ("hello, client, i got your msg %d times, now i will send back to you " % receive_count)
         client.send(msg.encode('utf-8'))
-        receive_count += 1
-        print("send len is : [%d]" % len(msg))
  
-    print("finish test, close connect")
     client.close()
     sock.close() 
-    print(" close client connect ")
+    print("Disconnected")
 
 def consist_check(mh,firstTable,secondTable,idName):
     sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.{2} FROM {0} LEFT JOIN {1} ON {0}.{2} = {1}.{2} WHERE {1}.{2} IS NULL) as tmp on {0}.{2} = tmp.{2}".format(firstTable,secondTable,idName)
@@ -144,7 +138,7 @@ def revert():
 # 2. Peroform Data Clean
 # 3. Commit change and update table if success
 # 4. revert if client does not want to
-def clean(table='',attr='',sql = '',condition ='',consistency = True,commit = False):
+def clean(commit = False,role,period):
     mh = MysqlHelper('localhost', 'root', 'root', 'lahman2016', 'utf8')
     if(sql):
         result = mh.cud(sql)
@@ -159,61 +153,75 @@ def clean(table='',attr='',sql = '',condition ='',consistency = True,commit = Fa
     results = add_index(mh,'AllstarFull','playerID')
     results = add_index(mh,'HallOfFame','playerID')
     results = add_index(mh,'Managers','playerID')
-    results = add_index(mh,'FieldingOF','playerID')
-    results = add_index(mh,'BattingPost','playerID')
-    results = add_index(mh,'PitchingPost','playerID')
-    results = add_index(mh,'ManagersHalf','playerID')
-    results = add_index(mh,'Salaries','playerID')
-    results = add_index(mh,'AwardsManagers','playerID')
-    results = add_index(mh,'AwardsPlayers','playerID')
-    results = add_index(mh,'AwardsShareManagers','playerID')
-    results = add_index(mh,'AwardsSharePlayers','playerID')
-    results = add_index(mh,'FieldingPost','playerID')
-    results = add_index(mh,'Appearances','playerID')
-    results = add_index(mh,'CollegePlaying','playerID')
-    results = add_index(mh,'FieldingOFsplit','playerID')
+    # results = add_index(mh,'FieldingOF','playerID')
+    # results = add_index(mh,'BattingPost','playerID')
+    # results = add_index(mh,'PitchingPost','playerID')
+    # results = add_index(mh,'ManagersHalf','playerID')
+    # results = add_index(mh,'Salaries','playerID')
+    # results = add_index(mh,'AwardsManagers','playerID')
+    # results = add_index(mh,'AwardsPlayers','playerID')
+    # results = add_index(mh,'AwardsShareManagers','playerID')
+    # results = add_index(mh,'AwardsSharePlayers','playerID')
+    # results = add_index(mh,'FieldingPost','playerID')
+    # results = add_index(mh,'Appearances','playerID')
+    # results = add_index(mh,'CollegePlaying','playerID')
+    # results = add_index(mh,'FieldingOFsplit','playerID')
 
-    results = add_index(mh,'Team','teamID')
-    results = add_index(mh,'Batting','teamID')
-    results = add_index(mh,'Pitching','teamID')
-    results = add_index(mh,'Fielding','teamID')
-    results = add_index(mh,'AllstarFull','teamID')
-    results = add_index(mh,'Managers','teamID')
-    results = add_index(mh,'BattingPost','teamID')
-    results = add_index(mh,'PitchingPost','teamID')
-    results = add_index(mh,'FieldingPost','teamID')
-    results = add_index(mh,'ManagersHalf','teamID')
-    results = add_index(mh,'TeamsHalf','teamID')
-    results = add_index(mh,'Salaries','teamID')
-    results = add_index(mh,'Appearances','teamID')
+    results = add_index(mh,'Batting','yearID')
+    results = add_index(mh,'Pitching','yearID')
+    results = add_index(mh,'Fielding','yearID')
+    results = add_index(mh,'AllstarFull','yearID')
+    results = add_index(mh,'Managers','yearID')
+    results = add_index(mh,'HallOfFame','yearID')
+    # results = add_index(mh,'Team','teamID')
+    # results = add_index(mh,'Batting','teamID')
+    # results = add_index(mh,'Pitching','teamID')
+    # results = add_index(mh,'Fielding','teamID')
+    # results = add_index(mh,'AllstarFull','teamID')
+    # results = add_index(mh,'Managers','teamID')
+    # results = add_index(mh,'BattingPost','teamID')
+    # results = add_index(mh,'PitchingPost','teamID')
+    # results = add_index(mh,'FieldingPost','teamID')
+    # results = add_index(mh,'ManagersHalf','teamID')
+    # results = add_index(mh,'TeamsHalf','teamID')
+    # results = add_index(mh,'Salaries','teamID')
+    # results = add_index(mh,'Appearances','teamID')
 
+    results = consist_check('Batting','Master','playerID')
+    results = consist_check('Pitching','Master','playerID')
+    results = consist_check('Fielding','Master','playerID')
+    results = consist_check('HallOfFame','Master','playerID')
 
-    results = consist_check('business_categories','business','palyerID')
-    results = consist_check('checkin','business','business_id')
-    results = consist_check('review','business','business_id')
-    results = consist_check('tip','business','business_id')
-
-    results = consist_check('user_elite','user','user_id')
-    results = consist_check('user_friends','user','user_id')
-    results = consist_check('tip','user','user_id')
-    results = consist_check('review','user','user_id')
+    results = consist_check('user_elite','Batting','yearID')
+    results = consist_check('user_friends','user','yearID')
+    results = consist_check('tip','user','yearID')
+    results = consist_check('review','user','yearID')
 
     
-    sql = "DELETE FROM Master WHERE birthYear == '' OR deathYear == ''"
+    sql = "DELETE FROM Master WHERE birthYear == ''"
     results = mh.cud(sql)
     sql = "DELETE FROM HallOfFame WHERE inducted = 'N'"
     results = mh.cud(sql)
+    #since player is not eligible if not retired for at least 5 years or they do not meet ten year rule
+    sql = "DELETE FROM Master WHERE finalGame > '2011-12-31' OR finalGame-debut<10"
+
+
+    sql = 'select * FROM HallOfFame where not exists (select playerID from Master where playerID = HallOfFame.playerID);'
+    results = mh.cud(sql)
+    if(results != emptyset):
+        #ask user for the choices: delete or update
+        #if delete
+            #sql = "DELETE FROM {0} WHERE playerID = {0}".format('HallOfFame',results)
+        #elif update
+            #sql = UPDATE HallOfFame SET playerID='drewjd01' WHERE playerID='drewj.01';
+
+
     ################################################
 
     #identify forms of consistency and sanity checking
     #determine if there are problems with portions of data using query
     #implement solution such as ignore and create new table for analysis, or adjusting analysis in order to compensate for data skew(long tail of data distribution)
     #parameter should include threshold and identified by client
-    if(table & attr & condition):
-        sql = 'SELECT * FROM {0} WHERE {1} {2}'.format(table,attr,condition)
-        results = mh.find(sql)
-        #check if results is error, if yes, ask client for choices
-
 
     if commit: # not as expected 
         mh.db.commit()
@@ -225,13 +233,11 @@ def clean(table='',attr='',sql = '',condition ='',consistency = True,commit = Fa
 # Predict who will be inducted into Hall of Fame
 def analyze():
     print("TODO")
-    # a priori algorithm for operation hours on the rating of business
-    # joining business,business_categories
 
     # Minimized return to Client, only the result
     
 
-def validate():
+def validate(playerID ):
     #divide data into two at random.
     #first half would be used to analysis and predict for the oter half
     #The other half would be used to validate or refute hypothesis
@@ -243,4 +249,5 @@ def validate():
  
  
 if __name__=='__main__':
-    start_tcp_server('127.0.0.1',6000)
+    communication = Process(start_tcp_server('127.0.0.1',6000))
+    p1.start()
