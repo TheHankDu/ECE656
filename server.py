@@ -39,15 +39,12 @@ class MysqlHelper:
         self.db.close()
 
     # modify
-    def cud(self, sql, params):
+    def cud(self, sql):
         self.open()
         try:
-            self.curs.execute(sql, params)
-            self.db.commit()
-            print("ok")
+            self.curs.execute(sql)
         except:
             print('modify error')
-            self.db.rollback()
         self.close()
 
     # search
@@ -63,6 +60,16 @@ class MysqlHelper:
             return 1
         except MySQLError as e:
             return e.args[0]
+
+    def consist_check(self,firstTable,secondTable,idName):
+        sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.{2} FROM {0} LEFT JOIN {1} ON {0}.{2} = {1}.{2} WHERE {1}.{2} IS NULL) as tmp on {0}.{2} = tmp.{2}".format(firstTable,secondTable,idName)
+        results = self.cud(sql)
+        return results
+
+    def add_index(self,table,indexName):
+        sql = "ALTER TABLE {0} ADD INDEX ({1});".format(table,indexName)
+        results = self.cud(sql)
+        return results
  
  
 def start_tcp_server(ip, port):
@@ -119,40 +126,18 @@ def start_tcp_server(ip, port):
     sock.close() 
     print("Disconnected")
 
-def consist_check(mh,firstTable,secondTable,idName):
-    sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.{2} FROM {0} LEFT JOIN {1} ON {0}.{2} = {1}.{2} WHERE {1}.{2} IS NULL) as tmp on {0}.{2} = tmp.{2}".format(firstTable,secondTable,idName)
-    results = mh.cud(sql)
-    return results
-
-def add_index(mh,table,indexName):
-    sql = "ALTER TABLE {0} ADD INDEX ({1});".format(table,indexName)
-    results = mh.cud(sql)
-    return results
-
-
-def revert():
-    return
-    #Revert from backup table
-
-# 1. Create New Table called temp to store all the change 
-# 2. Peroform Data Clean
-# 3. Commit change and update table if success
-# 4. revert if client does not want to
 def clean(commit = False,role,period):
     mh = MysqlHelper('localhost', 'root', 'root', 'lahman2016', 'utf8')
-    if(sql):
-        result = mh.cud(sql)
-        return
 
     #########################################################
     #Default Cleanup Process
-    results = add_index(mh,'Master','playerID')
-    results = add_index(mh,'Batting','playerID')
-    results = add_index(mh,'Pitching','playerID')
-    results = add_index(mh,'Fielding','playerID')
-    results = add_index(mh,'AllstarFull','playerID')
-    results = add_index(mh,'HallOfFame','playerID')
-    results = add_index(mh,'Managers','playerID')
+    results = mh.add_index('Master','playerID')
+    results = mh.add_index('Batting','playerID')
+    results = mh.add_index('Pitching','playerID')
+    results = mh.add_index('Fielding','playerID')
+    results = mh.add_index('AllstarFull','playerID')
+    results = mh.add_index('HallOfFame','playerID')
+    results = mh.add_index('Managers','playerID')
     # results = add_index(mh,'FieldingOF','playerID')
     # results = add_index(mh,'BattingPost','playerID')
     # results = add_index(mh,'PitchingPost','playerID')
@@ -167,12 +152,12 @@ def clean(commit = False,role,period):
     # results = add_index(mh,'CollegePlaying','playerID')
     # results = add_index(mh,'FieldingOFsplit','playerID')
 
-    results = add_index(mh,'Batting','yearID')
-    results = add_index(mh,'Pitching','yearID')
-    results = add_index(mh,'Fielding','yearID')
-    results = add_index(mh,'AllstarFull','yearID')
-    results = add_index(mh,'Managers','yearID')
-    results = add_index(mh,'HallOfFame','yearID')
+    results = mh.add_index(mh,'Batting','yearID')
+    results = mh.add_index(mh,'Pitching','yearID')
+    results = mh.add_index(mh,'Fielding','yearID')
+    results = mh.add_index(mh,'AllstarFull','yearID')
+    results = mh.add_index(mh,'Managers','yearID')
+    results = mh.add_index(mh,'HallOfFame','yearID')
     # results = add_index(mh,'Team','teamID')
     # results = add_index(mh,'Batting','teamID')
     # results = add_index(mh,'Pitching','teamID')
@@ -187,15 +172,15 @@ def clean(commit = False,role,period):
     # results = add_index(mh,'Salaries','teamID')
     # results = add_index(mh,'Appearances','teamID')
 
-    results = consist_check('Batting','Master','playerID')
-    results = consist_check('Pitching','Master','playerID')
-    results = consist_check('Fielding','Master','playerID')
-    results = consist_check('HallOfFame','Master','playerID')
+    results = mh.consist_check('Batting','Master','playerID')
+    results = mh.consist_check('Pitching','Master','playerID')
+    results = mh.consist_check('Fielding','Master','playerID')
+    results = mh.consist_check('HallOfFame','Master','playerID')
 
-    results = consist_check('user_elite','Batting','yearID')
-    results = consist_check('user_friends','user','yearID')
-    results = consist_check('tip','user','yearID')
-    results = consist_check('review','user','yearID')
+    results = mh.consist_check('user_elite','Batting','yearID')
+    results = mh.consist_check('user_friends','user','yearID')
+    results = mh.consist_check('tip','user','yearID')
+    results = mh.consist_check('review','user','yearID')
 
     
     sql = "DELETE FROM Master WHERE birthYear == ''"
