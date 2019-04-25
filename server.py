@@ -42,28 +42,34 @@ class MysqlHelper:
     def cud(self, sql):
         self.open()
         try:
-            self.curs.execute(sql)
-        except:
+            rowCount = self.curs.execute(sql)
+            if(rowCount > 0):
+                print("Effected Row:".format{rowCount})
+            self.close()
+        except ps.MySQLError as e:
             print('modify error')
-        self.close()
-
+            self.close()
+            return e
+            #TODO: Notify client
+        
     # search
-    def find(self, sql, params):
+    def find(self, sql):
         self.open()
         try:
-            result = self.curs.execute(sql, params)
-            self.close()
+            self.curs.execute(sql)
             results = self.curs.fetchall()
+            self.close()
             return results
-        except ProgrammingError as e:
-            print('find error')
-            return 1
-        except MySQLError as e:
-            return e.args[0]
+        except ps.MySQLError as e:
+            self.close()
+            return e
+        
 
     def consist_check(self,firstTable,secondTable,idName):
-        sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.{2} FROM {0} LEFT JOIN {1} ON {0}.{2} = {1}.{2} WHERE {1}.{2} IS NULL) as tmp on {0}.{2} = tmp.{2}".format(firstTable,secondTable,idName)
-        results = self.cud(sql)
+        #sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.{2} FROM {0} LEFT JOIN {1} ON {0}.{2} = {1}.{2} WHERE {1}.{2} IS NULL) as tmp on {0}.{2} = tmp.{2}".format(firstTable,secondTable,idName)
+        sql = "SELECT {0}.{2} FROM {0} LEFT JOIN {1} ON {0}.{2} = {1}.{2} WHERE {1}.{2} IS NULL".format(firstTable,secondTable,idName)
+        results = self.find(sql)
+        if(results)
         return results
 
     def add_index(self,table,indexName):
@@ -103,14 +109,13 @@ def start_tcp_server(ip, port):
     except socket.error as e:
         print("fail to listen on port %s" % e)
         sys.exit(1)
-    while True:
-        print("waiting for connection")
-        client, addr = sock.accept()
-        print("having a connection")
-        break
+    
+    print("waiting for connection")
+    client, addr = sock.accept()
+    print("having a connection")
+        
     msg = 'welcome to tcp server' + "\r\n"
-    receive_count = 0
-    receive_count += 1
+
     while True:
         print("\r\n")
         msg = client.recv(16384)
@@ -164,7 +169,6 @@ def clean(commit = False,role,period):
     #since player is not eligible if not retired for at least 5 years or they do not meet ten year rule
     sql = "DELETE FROM Master WHERE finalGame > '2011-12-31' OR finalGame-debut<10"
 
-
     sql = 'select * FROM HallOfFame where not exists (select playerID from Master where playerID = HallOfFame.playerID);'
     results = mh.cud(sql)
     if(results != emptyset):
@@ -196,7 +200,7 @@ def analyze():
     # Minimized return to Client, only the result
     
 
-def validate(playerID ):
+def validate():
     #divide data into two at random.
     #first half would be used to analysis and predict for the oter half
     #The other half would be used to validate or refute hypothesis
