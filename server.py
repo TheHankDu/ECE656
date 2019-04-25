@@ -8,8 +8,8 @@ import numpy as np
 import pandas as pd
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import train_test_split
- 
- 
+
+client 
 SEND_BUF_SIZE = 256
  
 RECV_BUF_SIZE = 256
@@ -56,8 +56,9 @@ class MysqlHelper:
     def find(self, sql):
         self.open()
         try:
-            self.curs.execute(sql)
-            results = self.curs.fetchall()
+            rowCount = self.curs.execute(sql)
+            if(rowCount > 0):
+                results = self.curs.fetchall()
             self.close()
             return results
         except ps.MySQLError as e:
@@ -69,8 +70,8 @@ class MysqlHelper:
         #sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.{2} FROM {0} LEFT JOIN {1} ON {0}.{2} = {1}.{2} WHERE {1}.{2} IS NULL) as tmp on {0}.{2} = tmp.{2}".format(firstTable,secondTable,idName)
         sql = "SELECT {0}.{2} FROM {0} LEFT JOIN {1} ON {0}.{2} = {1}.{2} WHERE {1}.{2} IS NULL".format(firstTable,secondTable,idName)
         results = self.find(sql)
-        if(results)
-        return results
+        if(len(results) > 0):
+            return results
 
     def add_index(self,table,indexName):
         sql = "ALTER TABLE {0} ADD INDEX ({1});".format(table,indexName)
@@ -117,13 +118,16 @@ def start_tcp_server(ip, port):
     msg = 'welcome to tcp server' + "\r\n"
 
     while True:
-        print("\r\n")
         msg = client.recv(16384)
         msg_de = msg.decode('utf-8')
         
         if msg_de == '4':
             print("Client Requested to Disconnect, Disconnecting...")
             break
+
+        ##############################################
+        #Run Procedure HERE
+        ##############################################
  
         client.send(msg.encode('utf-8'))
  
@@ -214,3 +218,4 @@ def validate():
 if __name__=='__main__':
     communication = Process(start_tcp_server('127.0.0.1',6000))
     p1.start()
+    p1.join()
