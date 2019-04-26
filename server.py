@@ -36,7 +36,6 @@ class MysqlHelper:
     # modify
     def cud(self, sql,client):
         self.open()
-        print(sql)
         try:
             rowCount = self.curs.execute(sql)
             print(rowCount)
@@ -66,7 +65,7 @@ class MysqlHelper:
             self.close()
             return results
         
-
+    # Consistency Check
     def consist_check(self,client,firstTable,secondTable,idName):
         print("Running Consistency Check {0} {1} {2}...".format(firstTable,secondTable,idName))
         sql = "SELECT {0}.{2} FROM {0} LEFT JOIN {1} ON {0}.{2} = {1}.{2} WHERE {1}.{2} IS NULL".format(firstTable,secondTable,idName)
@@ -82,11 +81,19 @@ class MysqlHelper:
                 self.cud(sql,client)
         print("Finished Consistency Check {0} {1} {2}".format(firstTable,secondTable,idName))                
 
+    # Adding Index
     def add_index(self,client,table,indexName):
         print("Adding Index {0}".format(table))
         sql = "ALTER TABLE {0} ADD INDEX ({1});".format(table,indexName)
         results = self.cud(sql,client)
         return results
+
+    # Revert databse
+    def revertdb(self,stmts):
+        self.open()
+        for sql in stmts:
+            self.curs.execute(sql)
+        self.close()
  
  
 def start_tcp_server(ip, port):
@@ -155,7 +162,7 @@ def start_tcp_server(ip, port):
     print("Disconnected")
 
 def clean(client,commit = False,period = 2010):
-    print('start cleaning...')
+    print('Start Cleaning...')
     mh = MysqlHelper()
 
     #########################################################
@@ -210,16 +217,13 @@ def clean(client,commit = False,period = 2010):
     sql = 'DROP VIEW IF EXISTS TrainSet;'
     results = mh.cud(sql,client)
     sql = 'CREATE VIEW TrainSet AS SELECT playerID, IFNULL(tot_W, 0) AS tot_W, IFNULL(tot_SHO, 0) AS tot_SHO,IFNULL(tot_SO, 0) AS total_SO,tot_H,tot_HR,tot_RBI,IFNULL(OBP, 0) AS total_OBP,IFNULL(ASA, 0) AS ASA,lastyear FROM((SELECT playerID, SUM(W) AS tot_W, SUM(SHO) AS tot_SHO, SUM(SO) AS tot_SO FROM Pitching GROUP BY (playerID)) AS t1 RIGHT JOIN (SELECT playerID, SUM(H) AS tot_H, SUM(HR) AS tot_HR, SUM(RBI) AS tot_RBI, SUM(H + BB + HBP) / SUM(AB + BB + SF + HBP) AS OBP FROM Batting GROUP BY (playerID)) AS t2 USING (playerID) LEFT JOIN (SELECT playerID, SUM(GP) AS asa FROM AllstarFull GROUP BY (playerID)) AS t3 USING (playerID) LEFT JOIN (SELECT playerID, LEFT(finalGame, 4) AS lastyear FROM Master) AS t4 USING (playerID));'
-    #sql = 'CREATE VIEW TrainSet AS SELECT playerID,ifnull(tot_W,0) as tot_W,ifnull(tot_SHO,0)as tot_SHO,ifnull(tot_SO,0) as total_SO,tot_H,tot_HR,tot_RBI,ifnull(OBP,0) as total_OBP,ifnull(ASA,0)as ASA from ((Select playerID, sum(W) as tot_W, sum(SHO) as tot_SHO, sum(SO) as tot_SO from Pitching group by (playerID))as t1 right join (select playerID,sum(H) as tot_H,sum(HR) as tot_HR, sum(RBI) as tot_RBI, sum(H+BB+HBP)/sum(AB+BB+SF+HBP) as OBP from Batting group by (playerID))as t2 using (playerID) left join (select playerID,sum(GP) as asa from AllstarFull group by (playerID)) as t3 using (playerID));'
     results = mh.cud(sql,client)
 
     sql = 'SELECT * FROM TrainSet;'
     feature_list = mh.find(sql,client)
-    print(feature_list)
 
-
-    # sql = "SELECT playerID,ifnull(inducted,'N') AS inducted,yearid FROM TrainSet Left JOIN HallOfFame USING (playerID) WHERE yearid < {0};".format(period)
-    # result_list = mh.find(sql,client)
+    sql = "SELECT playerID,ifnull(inducted,'N') AS inducted,yearid FROM TrainSet Left JOIN HallOfFame USING (playerID) WHERE yearid < {0};".format(period)
+    result_list = mh.find(sql,client)
     mh.open()
     if commit: # not as expected 
         mh.db.commit()
@@ -249,15 +253,36 @@ def validate(client):
     #first half would be used to analysis and predict for the other half
     #The other half would be used to validate or refute hypothesis
     #return should be validated or not, probably with some reason
-    print("TODO")
+    
     client.send("Finished".encode())
 
 def revert(client):
-    print("TODO")
+    mh = MysqlHelper()
+    original_sql = open("lahman2016.sql", 'r').readlines()
+    stmts = []
+    DELIMITER = ';'
+    stmt = ''
 
+    for ln, line in enumerate(original_sql):
+        if line.startswith('--'):
+            continue
 
- 
- 
+        if not line.strip():
+            continue
+
+        if (DELIMITER not in line):
+            stmt += line.replace(DELIMITER, ';')
+            continue
+
+        if stmt:
+            stmt += line
+            stmts.append(stmt.strip())
+            stmt = ''
+        else:
+            stmts.append(line.strip())
+
+    mh.revertdb(stmts)
+    return
  
 if __name__=='__main__':
         start_tcp_server('127.0.0.1',6000)
