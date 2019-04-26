@@ -42,9 +42,9 @@ class MysqlHelper:
             print(rowCount)
             if(rowCount > 0):
                 client.send("Effected Row:{0}".format(rowCount).encode())
-            self.close()
         except ps.MySQLError as e:
             client.send("Modification Error. Code:{0} Detail:{1}".format(e.args[0],e.args[1]).encode())
+        finally:
             self.close()
         
     # search
@@ -55,16 +55,16 @@ class MysqlHelper:
             rowCount = self.curs.execute(sql)
             if(rowCount > 0):
                 results = self.curs.fetchall()
-            self.close()
-            print(results)
-            return results
         except ps.MySQLError as e:
             print("Query Error. Code:{0} Detail:{1}".format(e.args[0],e.args[1]))
             client.send("Query Error. Code:{0} Detail:{1}".format(e.args[0],e.args[1]).encode())
-            self.close()
             raise
         except ps.InterfaceError as ie:
             print("Interface Error. Code:{0} Detail:{1}".format(e.args[0],e.args[1]))
+            raise
+        finally:
+            self.close()
+            return results
         
 
     def consist_check(self,client,firstTable,secondTable,idName):
@@ -215,15 +215,17 @@ def clean(client,commit = False,period = 2010):
 
     sql = 'SELECT * FROM TrainSet;'
     feature_list = mh.find(sql,client)
+    print(feature_list)
 
 
     # sql = "SELECT playerID,ifnull(inducted,'N') AS inducted,yearid FROM TrainSet Left JOIN HallOfFame USING (playerID) WHERE yearid < {0};".format(period)
     # result_list = mh.find(sql,client)
-    
-    # if commit: # not as expected 
-    #     mh.db.commit()
-    # else:
-    #     mh.db.rollback()
+    mh.open()
+    if commit: # not as expected 
+        mh.db.commit()
+    else:
+        mh.db.rollback()
+    mh.close()
 
     print("Finished Cleanup")
     client.send("Finished".encode())

@@ -40,6 +40,7 @@ def start_tcp_client(ip, port):
 		elif (tmp == 'R' or tmp == 'r'):
 			revert(server)
 		elif (tmp == '4' or rec == '4'):
+			server.send('4'.encode())
 			quit = True
 		else:
 			print("Invalid Option, Please enter your option again")
@@ -65,6 +66,7 @@ def clean(s):
 		tmp = s.recv(1024).decode()
 		if(tmp == "Finished"):
 			isClean = True
+			print('Data Cleaned')
 		elif(tmp == '4'):
 			return tmp
 		elif(tmp != ''):
