@@ -1,7 +1,7 @@
 import socket
 import sys
 import struct
-import pymysql
+import pymysql as ps
 import tree
 
 #from apyori import apriori
@@ -19,7 +19,7 @@ cleaned_data = None
 BUF_SIZE = 256
 
 class MysqlHelper:
-    def __init__(self, host = 'localhost', user = 'root', password = 'root', database = 'lahman2016', charset = 'utf8'):
+    def __init__(self, host = 'localhost', user = 'root', password = '940326', database = 'lahman2016', charset = 'utf8'):
         self.host = host
         self.user = user
         self.password = password
@@ -44,10 +44,10 @@ class MysqlHelper:
         try:
             rowCount = self.curs.execute(sql)
             if(rowCount > 0):
-                client.send("Effected Row:".format{rowCount})
+                client.send("Effected Row:".format(rowCount).encode())
             self.close()
         except ps.MySQLError as e:
-            client.send("Modification Error. Code:{0} Detail:{1}".format(e.args[0],e.args[1]))
+            client.send("Modification Error. Code:{0} Detail:{1}".format(e.args[0],e.args[1]).encode())
             self.close()
         
     # search
@@ -60,25 +60,23 @@ class MysqlHelper:
             self.close()
             return results
         except ps.MySQLError as e:
-            client.send("Query Error. Code:{0} Detail:{1}".format(e.args[0],e.args[1]))
+            client.send("Query Error. Code:{0} Detail:{1}".format(e.args[0],e.args[1]).encode())
             self.close()
             return e
         
 
     def consist_check(self,firstTable,secondTable,idName):
-        #sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.{2} FROM {0} LEFT JOIN {1} ON {0}.{2} = {1}.{2} WHERE {1}.{2} IS NULL) as tmp on {0}.{2} = tmp.{2}".format(firstTable,secondTable,idName)
         sql = "SELECT {0}.{2} FROM {0} LEFT JOIN {1} ON {0}.{2} = {1}.{2} WHERE {1}.{2} IS NULL".format(firstTable,secondTable,idName)
         results = self.find(sql)
         if(len(results) > 0):
-            client.send('There are {0} entries that exist in {1} but not in {2} for {3}. Please reply 1 to delete or complete SQL query to Adjust it'.format(len(results),firstTable,secondTable,idName))
-            reply = client.recv(16384)
+            client.send('There are {0} entries that exist in {1} but not in {2} for {3}. Please reply 1 to delete or complete SQL query to Adjust it'.format(len(results),firstTable,secondTable,idName).encode())
+            reply = client.recv(16384).decode()
             if(reply == '1'):
                 sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.{2} FROM {0} LEFT JOIN {1} ON {0}.{2} = {1}.{2} WHERE {1}.{2} IS NULL) as tmp on {0}.{2} = tmp.{2}".format(firstTable,secondTable,idName)
                 self.cud(sql)
             else:
-                sql = client.recv(16384)
-                #sql = UPDATE HallOfFame SET playerID='drewjd01' WHERE playerID='drewj.01'
-                self.cud(sql)
+                #ignore
+                continue
 
 
     def add_index(self,table,indexName):
@@ -93,7 +91,7 @@ def start_tcp_server(ip, port):
     server_address = (ip, port)
 
     # Set Timeout to 60 sec
-    s.settimeout(60)
+    sock.settimeout(60)
  
     # bind port
     print("starting listen on ip %s, port %s" % server_address)
@@ -118,43 +116,43 @@ def start_tcp_server(ip, port):
 
     while True:
         msg = client.recv(16384)
-        msg_de = msg
+        msg_de = msg.decode()
+        print(msg_de)
         
         if msg_de == '4':
             print("Client Requested to Disconnect, Disconnecting...")
+            client.send('4'.encode())
             break
         ##############################################
         #Run Procedure HERE
         elif msg_de == '1':
-            if(client.recv(16384) == 'Y')
+            if(client.recv(16384) == 'Y'):
                 commit = True
-                role = client.recv(16384)
-                period = client.recv(16384)
-                clean(commit,role,period)
+                clean(commit)
             else:
-                role = client.recv(16384)
-                period = client.recv(16384)
+                clean()
         elif msg_de == '2':
-            analyze()
+            period = client.recv(16384)
+            analyze(period)
         elif msg_de == '3':
+            if(period = None):
+
             validate()
         else:
-            client.send('unknown option')
-
+            client.send('unknown option'.encode())
 
         ##############################################
- 
-        client.send(msg)
  
     client.close()
     sock.close() 
     print("Disconnected")
 
 def clean(commit = False):
-    mh = MysqlHelper('localhost', 'root', 'root', 'lahman2016', 'utf8')
+    print('start cleaning')
+    mh = MysqlHelper()
 
     #########################################################
-    #Default Cleanup Process
+    # Default Cleanup Process
     results = mh.add_index('Master','playerID')
     results = mh.add_index('Batting','playerID')
     results = mh.add_index('Pitching','playerID')
@@ -170,12 +168,15 @@ def clean(commit = False):
     results = mh.add_index('Managers','yearID')
     results = mh.add_index('HallOfFame','yearID')
 
+    #########################################################
+    #Consistancy Check
     results = mh.consist_check('Batting','Master','playerID')
     results = mh.consist_check('Pitching','Master','playerID')
     results = mh.consist_check('Fielding','Master','playerID')
     results = mh.consist_check('HallOfFame','Master','playerID')
 
-    
+    #########################################################
+    # Sanity Check
     sql = "DELETE FROM Master WHERE finalGame = '' OR debut = ''"
     results = mh.cud(sql)
     # if a player is not inducted and vote is less than 5%, he is out of the pool
@@ -184,10 +185,11 @@ def clean(commit = False):
     #since player is not eligible if not retired for at least 5 years or they do not meet ten year rule
     sql = "DELETE FROM Master WHERE finalGame > '2011-12-31' or LEFT(finalGame,4)-LEFT(debut,4) < 10;"
     results = mh.cud(sql)
+    #Delete non-inducted record if the player was inducted
     sql = "DELETE t1 FROM HallOfFame t1, HallOfFame t2 WHERE t1.inducted < t2.inducted and t1.playerID = t2.playerID;"
     results = mh.cud(sql)
 
-    ################################################
+    ##########################################################
 
     #identify forms of consistency and sanity checking
     #determine if there are problems with portions of data using query
@@ -195,7 +197,7 @@ def clean(commit = False):
     #parameter should include threshold and identified by client
 
     # playerID,Career Win, Career ShoutOut, Career StrikeOut,Career Hits,Career HomeRun,Career RBI (Runs Batted In), Career OBP(On base percentage), Career All Star Appearence
-    sql = 'SELECT playerID,ifnull(tot_W,0) as tot_W,ifnull(tot_SHO,0)as tot_SHO,ifnull(tot_SO,0) as total_SO,tot_H,tot_HR,tot_RBI,ifnull(OBP,0) as total_OBP,ifnull(ASA,0)as ASA from ((Select playerID, sum(W) as tot_W, sum(SHO) as tot_SHO, sum(SO) as tot_SO from Pitching group by (playerID))as t1 right join (select playerID,sum(H) as tot_H,sum(HR) as tot_HR, sum(RBI) as tot_RBI, sum(H+BB+HBP)/sum(AB+BB+SF+HBP) as OBP from Batting group by (playerID))as t2 using (playerID) left join (select playerID,sum(GP) as asa from AllstarFull group by (playerID)) as t3 using (playerID));'
+    sql = 'CREATE VIEW TrainSet AS SELECT playerID,ifnull(tot_W,0) as tot_W,ifnull(tot_SHO,0)as tot_SHO,ifnull(tot_SO,0) as total_SO,tot_H,tot_HR,tot_RBI,ifnull(OBP,0) as total_OBP,ifnull(ASA,0)as ASA from ((Select playerID, sum(W) as tot_W, sum(SHO) as tot_SHO, sum(SO) as tot_SO from Pitching group by (playerID))as t1 right join (select playerID,sum(H) as tot_H,sum(HR) as tot_HR, sum(RBI) as tot_RBI, sum(H+BB+HBP)/sum(AB+BB+SF+HBP) as OBP from Batting group by (playerID))as t2 using (playerID) left join (select playerID,sum(GP) as asa from AllstarFull group by (playerID)) as t3 using (playerID));'
 
         # Select playerID,tot_W,tot_SHO,tot_SO,tot_H,tot_RBI,OBP,ASA from ((Select playerID,sum(W) as tot_W,sum(SHO) as tot_SHO,sum(SO) as tot_SO from Pitching group by (playerID)) inner join (select playerID,sum(H) as tot_H,sum(RBI) as tot_RBI sum(H+BB+HBP)/sum(AB+BB+SF+HBP) as OBP from Batting group by (playerID)) using (playerID) inner join (select playerID,sum(GP) as asa from AllstarFull group by (playerID)) using (playerID);
     cleaned_data = mh.find(sql)
@@ -204,29 +206,38 @@ def clean(commit = False):
         mh.db.commit()
     else:
         mh.db.rollback()
+    client.send("Finished".encode())
 
 
 
 # Predict who will be inducted into Hall of Fame
-def analyze(category,period):
+def analyze(period):
+    if(cleaned_data == None):
+        client.send("data is not cleaned yet, please clean data first")
+        return
+
+    mh = MysqlHelper()
+
+    sql = "SELECT playerID,ifnull(inducted,'N') AS inducted,yearid FROM TrainSet Left JOIN HallOfFame USING (playerID) WHERE yearid < {period};".format(period)
+    result = mh.find(sql)
+
     detree = DecisionTreeClass()
     detree.fit(cleaned_data,result)
     # Stats to be considered: Wins(W),Losses(L),Strike-out(SO),Hits(H),Homer(HR),All Start Appearence count,
     # Minimized return to Client, only the result
-    
+    client.send("Finished".encode())
 
 def validate():
     #divide data into two at random.
-    #first half would be used to analysis and predict for the oter half
+    #first half would be used to analysis and predict for the other half
     #The other half would be used to validate or refute hypothesis
     #return should be validated or not, probably with some reason
     print("TODO")
+    client.send("Finished".encode())
 
 
  
  
  
 if __name__=='__main__':
-    communication = Process(start_tcp_server('127.0.0.1',6000))
-    p1.start()
-    p1.join()
+    start_tcp_server('127.0.0.1',6000)

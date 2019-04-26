@@ -1,10 +1,18 @@
 This is the README of the project which include basic instruction of how to use it.
 
-For Clean Data:
-The parameter is database, table name and threshold of the data cleaning algo
+# Set up
+```console
+mysql -u root -p < lahman2016.sql
+```
 
-For Analyze Data:
-The parameter is database, table name and required parameters(TBA)
+# Cleaning Data:
+The parameters are *commit* (True/False) which indicates whether commit the change to database after data cleaning process or not.
+*Note: If there is any clean up issue, server will provide user possible solution and user will be able to choose it*
 
-For Validate Data:
-The parameter is database, table name, required parameters(TBA) and Analysis result(Format TBA)
+# Analyzing Data:
+The parameter is *period* which is what period of time that player was inducted do you want to analyze. Specify the 4-digits year number, the analyzed data would be prior this year.
+
+# Validating Data:
+There is no parameter for this function.
+
+The server will analyze data use model built by Analyzing data and use rest of year data to validate it.
