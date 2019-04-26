@@ -47,10 +47,8 @@ class MysqlHelper:
                 client.send("Effected Row:".format{rowCount})
             self.close()
         except ps.MySQLError as e:
-            print('modify error')
-            client.send("")
+            client.send("Modification Error. Code:{0} Detail:{1}".format(e.args[0],e.args[1]))
             self.close()
-            return e
         
     # search
     def find(self, sql):
@@ -62,6 +60,7 @@ class MysqlHelper:
             self.close()
             return results
         except ps.MySQLError as e:
+            client.send("Query Error. Code:{0} Detail:{1}".format(e.args[0],e.args[1]))
             self.close()
             return e
         
@@ -151,7 +150,7 @@ def start_tcp_server(ip, port):
     sock.close() 
     print("Disconnected")
 
-def clean(commit = False,role,period):
+def clean(commit = False):
     mh = MysqlHelper('localhost', 'root', 'root', 'lahman2016', 'utf8')
 
     #########################################################
@@ -176,11 +175,6 @@ def clean(commit = False,role,period):
     results = mh.consist_check('Fielding','Master','playerID')
     results = mh.consist_check('HallOfFame','Master','playerID')
 
-    results = mh.consist_check('Pitching','Batting','yearID')
-    results = mh.consist_check('Fielding','Batting','yearID')
-    results = mh.consist_check('tip','user','yearID')
-    results = mh.consist_check('review','user','yearID')
-
     
     sql = "DELETE FROM Master WHERE finalGame = '' OR debut = ''"
     results = mh.cud(sql)
@@ -188,7 +182,9 @@ def clean(commit = False,role,period):
     sql = "DELETE FROM HallOfFame WHERE inducted = 'N' AND votes/ballots < 0.05"
     results = mh.cud(sql)
     #since player is not eligible if not retired for at least 5 years or they do not meet ten year rule
-    sql = "DELETE FROM Master WHERE finalGame > '2011-12-31' OR finalGame-debut < 10"
+    sql = "DELETE FROM Master WHERE finalGame > '2011-12-31' or LEFT(finalGame,4)-LEFT(debut,4) < 10;"
+    results = mh.cud(sql)
+    sql = "DELETE t1 FROM HallOfFame t1, HallOfFame t2 WHERE t1.inducted < t2.inducted and t1.playerID = t2.playerID;"
     results = mh.cud(sql)
 
     ################################################
@@ -199,7 +195,9 @@ def clean(commit = False,role,period):
     #parameter should include threshold and identified by client
 
     # playerID,Career Win, Career ShoutOut, Career StrikeOut,Career Hits,Career HomeRun,Career RBI (Runs Batted In), Career OBP(On base percentage), Career All Star Appearence
-    sql = Select playerID,tot_W,tot_SHO,tot_SO,tot_H,tot_RBI,OBP,ASA from ((Select playerID,sum(W) as tot_W,sum(SHO) as tot_SHO,sum(SO) as tot_SO from Pitching group by (playerID)) inner join (select playerID,sum(H) as tot_H,sum(RBI) as tot_RBI sum(H+BB+HBP)/sum(AB+BB+SF+HBP) as OBP from Batting group by (playerID)) using (playerID) inner join (select playerID,sum(GP) as asa from AllstarFull group by (playerID)) using (playerID);
+    sql = 'SELECT playerID,ifnull(tot_W,0) as tot_W,ifnull(tot_SHO,0)as tot_SHO,ifnull(tot_SO,0) as total_SO,tot_H,tot_HR,tot_RBI,ifnull(OBP,0) as total_OBP,ifnull(ASA,0)as ASA from ((Select playerID, sum(W) as tot_W, sum(SHO) as tot_SHO, sum(SO) as tot_SO from Pitching group by (playerID))as t1 right join (select playerID,sum(H) as tot_H,sum(HR) as tot_HR, sum(RBI) as tot_RBI, sum(H+BB+HBP)/sum(AB+BB+SF+HBP) as OBP from Batting group by (playerID))as t2 using (playerID) left join (select playerID,sum(GP) as asa from AllstarFull group by (playerID)) as t3 using (playerID));'
+
+        # Select playerID,tot_W,tot_SHO,tot_SO,tot_H,tot_RBI,OBP,ASA from ((Select playerID,sum(W) as tot_W,sum(SHO) as tot_SHO,sum(SO) as tot_SO from Pitching group by (playerID)) inner join (select playerID,sum(H) as tot_H,sum(RBI) as tot_RBI sum(H+BB+HBP)/sum(AB+BB+SF+HBP) as OBP from Batting group by (playerID)) using (playerID) inner join (select playerID,sum(GP) as asa from AllstarFull group by (playerID)) using (playerID);
     cleaned_data = mh.find(sql)
 
     if commit: # not as expected 
@@ -210,9 +208,9 @@ def clean(commit = False,role,period):
 
 
 # Predict who will be inducted into Hall of Fame
-def analyze():
-    dt = tree.DecisionTreeClass()
-    tree.fit(cleaned_data,result)
+def analyze(category,period):
+    detree = DecisionTreeClass()
+    detree.fit(cleaned_data,result)
     # Stats to be considered: Wins(W),Losses(L),Strike-out(SO),Hits(H),Homer(HR),All Start Appearence count,
     # Minimized return to Client, only the result
     
