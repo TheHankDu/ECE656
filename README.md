@@ -30,3 +30,6 @@ There is no parameter for this function.
 You might need to enter password on server side to perform full revert
 
 The server will analyze data use model built by Analyzing data and use rest of year data to validate it.
+
+# Database
+The Default username and password are both set to 'root', if there is a different name or password, please update it in server.py
