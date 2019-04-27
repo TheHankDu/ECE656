@@ -232,7 +232,7 @@ def clean(client,commit = False,period = 2010):
     sql = 'SELECT * FROM TrainSet where lastYear < {0} ORDER BY playerID ASC;'.format(period)
     feature_list = mh.find(sql,client)
 
-    sql = "SELECT Distinct(playerID),ifnull(inducted,'N') AS inducted FROM TrainSet Left JOIN (SELECT playerID,inducted FROM HallOfFame) as tmp USING (playerID) WHERE lastYear < {0} ORDER BY playerID;".format(period)
+    sql = "SELECT Distinct(playerID),if(inducted = 'Y',1,0) AS inducted FROM TrainSet Left JOIN (SELECT playerID,inducted FROM HallOfFame) as tmp USING (playerID) WHERE lastYear < {0} ORDER BY playerID;".format(period)
     result_list = mh.find(sql,client)
 
     print(len(feature_list))
@@ -255,8 +255,10 @@ def analyze(client):
         client.send("data is not cleaned yet, please clean data first".encode())
         return
 
+    #TODO: Convert result_list to 1D
+
     detree = tree.DecisionTreeClass()
-    detree.fit(feature_list,result_list)
+    detree.fit(feature_list[:len(result_list+1)],result_list)
     # Stats to be considered: Wins(W),Losses(L),Strike-out(SO),Hits(H),Homer(HR),All Start Appearence count,
     # Minimized return to Client, only the result
     client.send("Finished".encode())
