@@ -62,6 +62,7 @@ def clean(s):
 	else:
 		s.send('N'.encode())
 	print("What years of data do you want to analyze? Enter 4 digit number")
+	print("The number shall be less than 2017 and greater than 1871")
 	print("i.e: If I want to use data before 2010, just enter 2010")
 	period = input()
 	s.send(period.encode())
@@ -85,7 +86,7 @@ def analyze(s):
 	global isClean
 	if(not isClean):
 		print("Data is not cleaned, default clean has started...")
-		clean()
+		clean(s)
 
 	s.send('2'.encode())
 	#Check if data is cleaned
@@ -94,7 +95,7 @@ def analyze(s):
 def validate(s):
 	if(not isAnalyzed):
 		print("Data is not analyzed, default clean has started...")
-		analyze()
+		analyze(s)
 	s.send('3'.encode())
 	#Check if data is analyzed
 

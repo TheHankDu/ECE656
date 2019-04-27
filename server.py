@@ -10,6 +10,8 @@ import pandas as pd
 client = None
 feature_list = None
 result_list = None
+validate_list = None
+vali_res_list = None
 
 BUF_SIZE = 256
 
@@ -123,8 +125,8 @@ def start_tcp_server(ip, port):
     client, addr = sock.accept()
     print("Connected")
     try:
-        period = None
         while True:
+            period = None
             msg = client.recv(16384)
             msg_de = msg.decode()
             print(msg_de)
@@ -137,20 +139,22 @@ def start_tcp_server(ip, port):
             elif msg_de == '1':
                 if(client.recv(16384) == 'Y'):
                     commit = True
-                    period = client.recv(16384)
+                    while(period == None):
+                        period = client.recv(16384).decode()
                     clean(client,commit,period)
                 else:
+                    while(period == None):
+                        period = client.recv(16384).decode()
                     clean(client)
             elif msg_de == '2':
                 analyze(client)
             elif msg_de == '3':
-                if(period == None):
-                    analyze(client)
                 validate(client)
             elif msg_de == 'R':
                 revert(client)
             else:
                 client.send('unknown option'.encode())
+                raise
 
             ##############################################
     except:
@@ -163,6 +167,11 @@ def start_tcp_server(ip, port):
     print("Disconnected")
 
 def clean(client,commit = False,period = 2010):
+    global feature_list
+    global result_list
+    global validate_list 
+    global vali_res_list 
+
     print('Start Cleaning...')
     mh = MysqlHelper()
 
@@ -217,14 +226,17 @@ def clean(client,commit = False,period = 2010):
     # playerID,Career Win, Career ShoutOut, Career StrikeOut,Career Hits,Career HomeRun,Career RBI (Runs Batted In), Career OBP(On base percentage), Career All Star Appearence, lastyear
     sql = 'DROP VIEW IF EXISTS TrainSet;'
     results = mh.cud(sql,client)
-    sql = 'CREATE VIEW TrainSet{0} AS SELECT playerID, IFNULL(tot_W, 0) AS tot_W, IFNULL(tot_SHO, 0) AS tot_SHO,IFNULL(tot_SO, 0) AS total_SO,tot_H,tot_HR,tot_RBI,IFNULL(OBP, 0) AS total_OBP,IFNULL(ASA, 0) AS ASA,lastYear FROM((SELECT playerID, SUM(W) AS tot_W, SUM(SHO) AS tot_SHO, SUM(SO) AS tot_SO FROM Pitching GROUP BY (playerID)) AS t1 RIGHT JOIN (SELECT playerID, SUM(H) AS tot_H, SUM(HR) AS tot_HR, SUM(RBI) AS tot_RBI, SUM(H + BB + HBP) / SUM(AB + BB + SF + HBP) AS OBP FROM Batting GROUP BY (playerID)) AS t2 USING (playerID) LEFT JOIN (SELECT playerID, SUM(GP) AS asa FROM AllstarFull GROUP BY (playerID)) AS t3 USING (playerID) LEFT JOIN (SELECT playerID, LEFT(finalGame, 4) AS lastYear FROM Master) AS t4 USING (playerID));'.format(period)
+    sql = 'CREATE VIEW TrainSet AS SELECT playerID, IFNULL(tot_W, 0) AS tot_W, IFNULL(tot_SHO, 0) AS tot_SHO,IFNULL(tot_SO, 0) AS total_SO,tot_H,tot_HR,tot_RBI,IFNULL(OBP, 0) AS total_OBP,IFNULL(ASA, 0) AS ASA,lastYear FROM((SELECT playerID, SUM(W) AS tot_W, SUM(SHO) AS tot_SHO, SUM(SO) AS tot_SO FROM Pitching GROUP BY (playerID)) AS t1 RIGHT JOIN (SELECT playerID, SUM(H) AS tot_H, SUM(HR) AS tot_HR, SUM(RBI) AS tot_RBI, SUM(H + BB + HBP) / SUM(AB + BB + SF + HBP) AS OBP FROM Batting GROUP BY (playerID)) AS t2 USING (playerID) LEFT JOIN (SELECT playerID, SUM(GP) AS asa FROM AllstarFull GROUP BY (playerID)) AS t3 USING (playerID) LEFT JOIN (SELECT playerID, LEFT(finalGame, 4) AS lastYear FROM Master) AS t4 USING (playerID));'
     results = mh.cud(sql,client)
 
-    sql = 'SELECT * FROM TrainSet{0};'.format(period)
+    sql = 'SELECT * FROM TrainSet where lastYear < {0} ORDER BY playerID ASC;'.format(period)
     feature_list = mh.find(sql,client)
 
-    sql = "SELECT playerID,ifnull(inducted,'N') AS inducted,lastYear FROM TrainSet Left JOIN (SELECT playerID,inducted FROM HallOfFame) as tmp USING (playerID) WHERE lastYear < {0};".format(period)
+    sql = "SELECT Distinct(playerID),ifnull(inducted,'N') AS inducted FROM TrainSet Left JOIN (SELECT playerID,inducted FROM HallOfFame) as tmp USING (playerID) WHERE lastYear < {0} ORDER BY playerID;".format(period)
     result_list = mh.find(sql,client)
+
+    print(len(feature_list))
+    print(len(result_list))
     mh.open()
     if commit: # not as expected 
         mh.db.commit()
@@ -240,16 +252,18 @@ def analyze(client):
     global feature_list
     global result_list
     if(feature_list == None or result_list == None):
-        client.send("data is not cleaned yet, please clean data first")
+        client.send("data is not cleaned yet, please clean data first".encode())
         return
 
-    detree = DecisionTreeClass()
+    detree = tree.DecisionTreeClass()
     detree.fit(feature_list,result_list)
     # Stats to be considered: Wins(W),Losses(L),Strike-out(SO),Hits(H),Homer(HR),All Start Appearence count,
     # Minimized return to Client, only the result
     client.send("Finished".encode())
 
 def validate(client):
+    global validate_list 
+    global vali_res_list 
     #divide data into two at random.
     #first half would be used to analysis and predict for the other half
     #The other half would be used to validate or refute hypothesis
