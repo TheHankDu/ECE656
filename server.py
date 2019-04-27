@@ -204,8 +204,8 @@ def clean(client,commit = False,period = 2010):
     #since player is not eligible if not retired for at least 5 years or they do not meet ten year rule
     sql = "DELETE FROM Master WHERE finalGame > '2011-12-31' or LEFT(finalGame,4)-LEFT(debut,4) < 10;"
     results = mh.cud(sql,client)
-    #Delete non-inducted record if the player was inducted
-    sql = "DELETE t1 FROM HallOfFame t1, HallOfFame t2 WHERE t1.inducted < t2.inducted and t1.playerID = t2.playerID;"
+    #Delete older record for player and keep only the latest
+    sql = "DELETE t1 FROM HallOfFame t1, HallOfFame t2 WHERE t1.yearid < t2.yearid and t1.playerID = t2.playerID;"
     results = mh.cud(sql,client)
     print('Finished Sanity Check')
     ##########################################################
@@ -216,13 +216,13 @@ def clean(client,commit = False,period = 2010):
     # playerID,Career Win, Career ShoutOut, Career StrikeOut,Career Hits,Career HomeRun,Career RBI (Runs Batted In), Career OBP(On base percentage), Career All Star Appearence, lastyear
     sql = 'DROP VIEW IF EXISTS TrainSet;'
     results = mh.cud(sql,client)
-    sql = 'CREATE VIEW TrainSet AS SELECT playerID, IFNULL(tot_W, 0) AS tot_W, IFNULL(tot_SHO, 0) AS tot_SHO,IFNULL(tot_SO, 0) AS total_SO,tot_H,tot_HR,tot_RBI,IFNULL(OBP, 0) AS total_OBP,IFNULL(ASA, 0) AS ASA,lastyear FROM((SELECT playerID, SUM(W) AS tot_W, SUM(SHO) AS tot_SHO, SUM(SO) AS tot_SO FROM Pitching GROUP BY (playerID)) AS t1 RIGHT JOIN (SELECT playerID, SUM(H) AS tot_H, SUM(HR) AS tot_HR, SUM(RBI) AS tot_RBI, SUM(H + BB + HBP) / SUM(AB + BB + SF + HBP) AS OBP FROM Batting GROUP BY (playerID)) AS t2 USING (playerID) LEFT JOIN (SELECT playerID, SUM(GP) AS asa FROM AllstarFull GROUP BY (playerID)) AS t3 USING (playerID) LEFT JOIN (SELECT playerID, LEFT(finalGame, 4) AS lastyear FROM Master) AS t4 USING (playerID));'
+    sql = 'CREATE VIEW TrainSet AS SELECT playerID, IFNULL(tot_W, 0) AS tot_W, IFNULL(tot_SHO, 0) AS tot_SHO,IFNULL(tot_SO, 0) AS total_SO,tot_H,tot_HR,tot_RBI,IFNULL(OBP, 0) AS total_OBP,IFNULL(ASA, 0) AS ASA,lastYear FROM((SELECT playerID, SUM(W) AS tot_W, SUM(SHO) AS tot_SHO, SUM(SO) AS tot_SO FROM Pitching GROUP BY (playerID)) AS t1 RIGHT JOIN (SELECT playerID, SUM(H) AS tot_H, SUM(HR) AS tot_HR, SUM(RBI) AS tot_RBI, SUM(H + BB + HBP) / SUM(AB + BB + SF + HBP) AS OBP FROM Batting GROUP BY (playerID)) AS t2 USING (playerID) LEFT JOIN (SELECT playerID, SUM(GP) AS asa FROM AllstarFull GROUP BY (playerID)) AS t3 USING (playerID) LEFT JOIN (SELECT playerID, LEFT(finalGame, 4) AS lastYear FROM Master) AS t4 USING (playerID)) ORDER BY lastYear DESC;'
     results = mh.cud(sql,client)
 
     sql = 'SELECT * FROM TrainSet;'
     feature_list = mh.find(sql,client)
 
-    sql = "SELECT playerID,ifnull(inducted,'N') AS inducted,yearid FROM TrainSet Left JOIN HallOfFame USING (playerID) WHERE yearid < {0};".format(period)
+    sql = "SELECT playerID,ifnull(inducted,'N') AS inducted,lastYear FROM TrainSet Left JOIN (SELECT playerID,inducted FROM HallOfFame) as tmp USING (playerID) WHERE lastYear < 2010;".format(period)
     result_list = mh.find(sql,client)
     mh.open()
     if commit: # not as expected 
