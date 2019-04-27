@@ -1,8 +1,6 @@
 import socket
 import sys
 import time
- 
-import pymysql as ps	
 			
 isClean = False
 isAnalyzed = False
