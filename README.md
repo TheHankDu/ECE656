@@ -1,5 +1,7 @@
 This is the README of the project which include basic instruction of how to use it.
 
+This Project is Prepared by Hank Du (WatIAm:r23du, StudentID:20752443) and Zhaoyang Cui (WhatIAm:z45cui, studentID:20781133)
+
 # Set up
 ```console
 mysql -u root -p < lahman2016.sql

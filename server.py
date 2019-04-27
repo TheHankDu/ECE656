@@ -123,6 +123,7 @@ def start_tcp_server(ip, port):
     client, addr = sock.accept()
     print("Connected")
     try:
+        period = None
         while True:
             msg = client.recv(16384)
             msg_de = msg.decode()
@@ -136,12 +137,12 @@ def start_tcp_server(ip, port):
             elif msg_de == '1':
                 if(client.recv(16384) == 'Y'):
                     commit = True
-                    clean(client,commit)
+                    period = client.recv(16384)
+                    clean(client,commit,period)
                 else:
                     clean(client)
             elif msg_de == '2':
-                period = client.recv(16384)
-                analyze(client,period)
+                analyze(client)
             elif msg_de == '3':
                 if(period == None):
                     analyze(client)
@@ -216,13 +217,13 @@ def clean(client,commit = False,period = 2010):
     # playerID,Career Win, Career ShoutOut, Career StrikeOut,Career Hits,Career HomeRun,Career RBI (Runs Batted In), Career OBP(On base percentage), Career All Star Appearence, lastyear
     sql = 'DROP VIEW IF EXISTS TrainSet;'
     results = mh.cud(sql,client)
-    sql = 'CREATE VIEW TrainSet AS SELECT playerID, IFNULL(tot_W, 0) AS tot_W, IFNULL(tot_SHO, 0) AS tot_SHO,IFNULL(tot_SO, 0) AS total_SO,tot_H,tot_HR,tot_RBI,IFNULL(OBP, 0) AS total_OBP,IFNULL(ASA, 0) AS ASA,lastYear FROM((SELECT playerID, SUM(W) AS tot_W, SUM(SHO) AS tot_SHO, SUM(SO) AS tot_SO FROM Pitching GROUP BY (playerID)) AS t1 RIGHT JOIN (SELECT playerID, SUM(H) AS tot_H, SUM(HR) AS tot_HR, SUM(RBI) AS tot_RBI, SUM(H + BB + HBP) / SUM(AB + BB + SF + HBP) AS OBP FROM Batting GROUP BY (playerID)) AS t2 USING (playerID) LEFT JOIN (SELECT playerID, SUM(GP) AS asa FROM AllstarFull GROUP BY (playerID)) AS t3 USING (playerID) LEFT JOIN (SELECT playerID, LEFT(finalGame, 4) AS lastYear FROM Master) AS t4 USING (playerID)) ORDER BY lastYear DESC;'
+    sql = 'CREATE VIEW TrainSet{0} AS SELECT playerID, IFNULL(tot_W, 0) AS tot_W, IFNULL(tot_SHO, 0) AS tot_SHO,IFNULL(tot_SO, 0) AS total_SO,tot_H,tot_HR,tot_RBI,IFNULL(OBP, 0) AS total_OBP,IFNULL(ASA, 0) AS ASA,lastYear FROM((SELECT playerID, SUM(W) AS tot_W, SUM(SHO) AS tot_SHO, SUM(SO) AS tot_SO FROM Pitching GROUP BY (playerID)) AS t1 RIGHT JOIN (SELECT playerID, SUM(H) AS tot_H, SUM(HR) AS tot_HR, SUM(RBI) AS tot_RBI, SUM(H + BB + HBP) / SUM(AB + BB + SF + HBP) AS OBP FROM Batting GROUP BY (playerID)) AS t2 USING (playerID) LEFT JOIN (SELECT playerID, SUM(GP) AS asa FROM AllstarFull GROUP BY (playerID)) AS t3 USING (playerID) LEFT JOIN (SELECT playerID, LEFT(finalGame, 4) AS lastYear FROM Master) AS t4 USING (playerID));'.format(period)
     results = mh.cud(sql,client)
 
-    sql = 'SELECT * FROM TrainSet;'
+    sql = 'SELECT * FROM TrainSet{0};'.format(period)
     feature_list = mh.find(sql,client)
 
-    sql = "SELECT playerID,ifnull(inducted,'N') AS inducted,lastYear FROM TrainSet Left JOIN (SELECT playerID,inducted FROM HallOfFame) as tmp USING (playerID) WHERE lastYear < 2010;".format(period)
+    sql = "SELECT playerID,ifnull(inducted,'N') AS inducted,lastYear FROM TrainSet Left JOIN (SELECT playerID,inducted FROM HallOfFame) as tmp USING (playerID) WHERE lastYear < {0};".format(period)
     result_list = mh.find(sql,client)
     mh.open()
     if commit: # not as expected 
@@ -235,7 +236,7 @@ def clean(client,commit = False,period = 2010):
     client.send("Finished".encode())
 
 # Predict who will be inducted into Hall of Fame
-def analyze(client,period):
+def analyze(client):
     global feature_list
     global result_list
     if(feature_list == None or result_list == None):

@@ -29,17 +29,17 @@ def start_tcp_client(ip, port):
 	# send and receive
 	while (not quit):
 		create_menu()
-		tmp = input()
-		if tmp == '1':
+		opt = input()
+		if opt == '1':
 			if(clean(server) == '4'):
 				quit = True
-		elif tmp == '2':
+		elif opt == '2':
 			analyze(server)
-		elif tmp == '3':
+		elif opt == '3':
 			validate(server)
-		elif (tmp == 'R' or tmp == 'r'):
+		elif (opt == 'R' or opt == 'r'):
 			revert(server)
-		elif (tmp == '4' or rec == '4'):
+		elif (opt == '4' or opt == '4'):
 			server.send('4'.encode())
 			quit = True
 		else:
@@ -56,17 +56,21 @@ def clean(s):
 	s.send('1'.encode())
 	print("Please Enter the Option:")
 	print("Do you want to commit the change? (Y/N)")
-	tmp = input()
-	if(tmp == 'y' or tmp == 'Y'):
+	commit = input()
+	if(commit == 'y' or commit == 'Y'):
 		s.send('Y'.encode())
 	else:
 		s.send('N'.encode())
+	print("What years of data do you want to analyze? Enter 4 digit number")
+	print("i.e: If I want to use data before 2010, just enter 2010")
+	period = input()
+	s.send(period.encode())
 	isClean = False
 	while(not isClean):
 		tmp = s.recv(1024).decode()
 		if(tmp == "Finished"):
 			isClean = True
-			print('Data Cleaned')
+			print('Data is Cleaned\n')
 		elif(tmp == '4'):
 			return tmp
 		elif(tmp != ''):
@@ -82,6 +86,7 @@ def analyze(s):
 	if(not isClean):
 		print("Data is not cleaned, default clean has started...")
 		clean()
+
 	s.send('2'.encode())
 	#Check if data is cleaned
 
