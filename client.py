@@ -34,7 +34,8 @@ def start_tcp_client(ip, port):
 			if(clean(server) == '4'):
 				quit = True
 		elif opt == '2':
-			analyze(server)
+			if(analyze(server) =='4'):
+				quit = True
 		elif opt == '3':
 			validate(server)
 		elif (opt == 'R' or opt == 'r'):
@@ -69,7 +70,7 @@ def clean(s):
 	isClean = False
 	while(not isClean):
 		tmp = s.recv(1024).decode()
-		if(tmp == "Finished"):
+		if(tmp == "Clean Finished"):
 			isClean = True
 			print('Data is Cleaned\n')
 		elif(tmp == '4'):
@@ -84,23 +85,53 @@ def clean(s):
 #Analyze data
 def analyze(s):
 	global isClean
+	global isAnalyzed
 	if(not isClean):
 		print("Data is not cleaned, default clean has started...")
 		clean(s)
 
 	s.send('2'.encode())
-	#Check if data is cleaned
+	while (not isAnalyzed):
+		tmp = s.recv(1024).decode() 
+		if(tmp == "Analyze Finished"):
+			print("Data is Analyzed\n")
+			isAnalyzed = True
+		elif(tmp == '4'):
+			return tmp
+
+	return
 
 #Validate analysis
 def validate(s):
+	global isAnalyzed
+	isValidated = False
+	#Check if data is analyzed
 	if(not isAnalyzed):
-		print("Data is not analyzed, default clean has started...")
+		print("Data is not analyzed, default analyze has started...")
 		analyze(s)
 	s.send('3'.encode())
-	#Check if data is analyzed
+
+	while (not isValidated):
+		tmp = s.recv(1024).decode() 
+		if("Validation Finished" in tmp):
+			print("Data is Validated\n")
+			isValidated = True
+		elif(tmp == '4'):
+			return tmp
+		elif(tmp != ''):
+			print(tmp,'\n')
+	
 
 def revert(s):
+	isRevert = False
 	s.send('R'.encode())
+	while (not isRevert):
+		tmp = s.recv(1024).decode() 
+		if(tmp == "Revert Finished"):
+			print("Data is Reverted\n")
+			isRevert = True
+		elif(tmp == '4'):
+			return tmp
 
 
 def create_menu():

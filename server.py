@@ -1,11 +1,19 @@
 import socket
 import sys
+import traceback
 import struct
 import pymysql as ps
 import tree
+import time
 
 import numpy as np
 import pandas as pd
+
+from sklearn.metrics import confusion_matrix 
+from sklearn.model_selection import train_test_split 
+from sklearn.tree import DecisionTreeClassifier 
+from sklearn.metrics import accuracy_score 
+from sklearn.metrics import classification_report 
 
 client = None
 feature_list = None
@@ -16,7 +24,7 @@ vali_res_list = None
 BUF_SIZE = 256
 
 class MysqlHelper:
-    def __init__(self, host = 'localhost', user = 'root', password = '940326', database = 'lahman2016', charset = 'utf8'):
+    def __init__(self, host = 'localhost', user = 'root', password = 'root', database = 'lahman2016', charset = 'utf8'):
         self.host = host
         self.user = user
         self.password = password
@@ -40,9 +48,9 @@ class MysqlHelper:
         self.open()
         try:
             rowCount = self.curs.execute(sql)
-            print(rowCount)
             if(rowCount > 0):
-                client.send("Effected Row:{0}".format(rowCount).encode())
+                client.send("SQL: {0}".format(sql).encode())
+                client.send("Effected Row:{0}\n".format(rowCount).encode())
         except ps.MySQLError as e:
             client.send("Modification Error. Code:{0} Detail:{1}".format(e.args[0],e.args[1]).encode())
         finally:
@@ -77,7 +85,6 @@ class MysqlHelper:
             reply = None
             while(reply == None):
                 reply = client.recv(16384).decode()
-            print(reply)
             if(reply == '1'):
                 sql = "DELETE {0} FROM {0} INNER JOIN (SELECT {0}.{2} FROM {0} LEFT JOIN {1} ON {0}.{2} = {1}.{2} WHERE {1}.{2} IS NULL) as tmp on {0}.{2} = tmp.{2}".format(firstTable,secondTable,idName)
                 self.cud(sql,client)
@@ -147,9 +154,9 @@ def start_tcp_server(ip, port):
                         period = client.recv(16384).decode()
                     clean(client)
             elif msg_de == '2':
-                analyze(client)
+                model = analyze(client)
             elif msg_de == '3':
-                validate(client)
+                validate(client,model)
             elif msg_de == 'R':
                 revert(client)
             else:
@@ -159,7 +166,9 @@ def start_tcp_server(ip, port):
             ##############################################
     except:
         print("EXCEPT EXIT")
-        print(sys.exc_info()[0], sys.exc_info()[1])
+        # print(sys.exc_info()[0], sys.exc_info()[1])
+        # print(sys.exc_info()[2])
+        traceback.print_exc()
     finally:
         client.send('4'.encode())
         client.close()
@@ -235,6 +244,12 @@ def clean(client,commit = False,period = 2010):
     sql = "SELECT Distinct(playerID),if(inducted = 'Y',1,0) AS inducted FROM TrainSet Left JOIN (SELECT playerID,inducted FROM HallOfFame) as tmp USING (playerID) WHERE lastYear < {0} ORDER BY playerID;".format(period)
     result_list = mh.find(sql,client)
 
+    sql = 'SELECT * FROM TrainSet where lastYear >= {0} ORDER BY playerID ASC;'.format(period)
+    validate_list = mh.find(sql,client)
+
+    sql = "SELECT Distinct(playerID),if(inducted = 'Y',1,0) AS inducted FROM TrainSet Left JOIN (SELECT playerID,inducted FROM HallOfFame) as tmp USING (playerID) WHERE lastYear >= {0} ORDER BY playerID;".format(period)
+    vali_res_list = mh.find(sql,client)
+
     print(len(feature_list))
     print(len(result_list))
     mh.open()
@@ -245,7 +260,7 @@ def clean(client,commit = False,period = 2010):
     mh.close()
 
     print("Finished Cleanup")
-    client.send("Finished".encode())
+    client.send("Clean Finished".encode())
 
 # Predict who will be inducted into Hall of Fame
 def analyze(client):
@@ -255,51 +270,108 @@ def analyze(client):
         client.send("data is not cleaned yet, please clean data first".encode())
         return
 
-    #TODO: Convert result_list to 1D
+    result_1D = [int(d[1]) for d in result_list]
 
-    detree = tree.DecisionTreeClass()
-    detree.fit(feature_list[:len(result_list+1)],result_list)
-    # Stats to be considered: Wins(W),Losses(L),Strike-out(SO),Hits(H),Homer(HR),All Start Appearence count,
-    # Minimized return to Client, only the result
-    client.send("Finished".encode())
+    #('zuberjo01', Decimal('0'), Decimal('0'), Decimal('0'), Decimal('34'), Decimal('3'), Decimal('16'), 0.31333333333333335, Decimal('0'), '1998')
 
-def validate(client):
+    feature_2D = []
+    for row in feature_list:
+        feature_2D.append(list(map(float, list(row[1:9]))))
+
+    print(len(feature_2D))
+    print(len(result_1D[:len(feature_2D)]))
+
+    clf_entropy = DecisionTreeClassifier( 
+            criterion = "entropy", random_state = 100, 
+            max_depth = 13, min_samples_leaf = 5) 
+
+    # Performing training 
+    clf_entropy.fit(feature_2D, result_1D[:len(feature_2D)]) 
+
+    # detree = tree.DecisionTreeClass()
+    # detree.fit(feature_2D,result_1D[:len(feature_2D)])
+    client.send("Analyze Finished".encode())
+    print("Finished Analyze")
+    return clf_entropy
+
+# Function to make predictions 
+def prediction(X_test, clf_object): 
+
+    # Predicton on test with giniIndex 
+    y_pred = clf_object.predict(X_test) 
+    print("Predicted values:") 
+    print(y_pred) 
+    return y_pred 
+
+def cal_accuracy(client,y_test, y_pred): 
+    
+    print("Confusion Matrix: ", 
+        confusion_matrix(y_test, y_pred))
+    client.send("Confusion Matrix: {0}\n".format(confusion_matrix(y_test, y_pred)).encode())
+    
+    print ("Accuracy : ", 
+    accuracy_score(y_test,y_pred)*100) 
+
+    client.send("Accuracy: {0}\n".format(accuracy_score(y_test,y_pred)*100).encode())
+    
+    print("Report : ", 
+    classification_report(y_test, y_pred)) 
+    client.send("Report: {0}\n".format(classification_report(y_test, y_pred)).encode())
+
+def validate(client,model):
     global validate_list 
     global vali_res_list 
-    #divide data into two at random.
+
+    validate_2D = [] 
+    for row in validate_list:
+        validate_2D.append(list(map(float, list(row[1:9]))))
+
+    vali_res_1D = [int(d[1]) for d in vali_res_list]
+
+    pred = prediction(validate_2D, model) 
+    cal_accuracy(client,vali_res_1D, pred) 
+    #divide data into two as user request.
     #first half would be used to analysis and predict for the other half
     #The other half would be used to validate or refute hypothesis
     #return should be validated or not, probably with some reason
-    
-    client.send("Finished".encode())
+    time.sleep(2)
+    client.send("Validation Finished".encode())
 
 def revert(client):
-    mh = MysqlHelper()
-    original_sql = open("lahman2016.sql", 'r').readlines()
-    stmts = []
-    DELIMITER = ';'
-    stmt = ''
+    print("Reverting...")
+    import subprocess
+    with open("lahman2016.sql", "r") as f:
+        subprocess.run(["mysql", "-u","root","-p"],stdin = f)
 
-    for ln, line in enumerate(original_sql):
-        if line.startswith('--'):
-            continue
-
-        if not line.strip():
-            continue
-
-        if (DELIMITER not in line):
-            stmt += line.replace(DELIMITER, ';')
-            continue
-
-        if stmt:
-            stmt += line
-            stmts.append(stmt.strip())
-            stmt = ''
-        else:
-            stmts.append(line.strip())
-
-    mh.revertdb(stmts)
+    client.send("Revert Finished".encode())
+    print("Finished Reverting")
     return
+    # mh = MysqlHelper()
+    # original_sql = open("lahman2016.sql", 'r').readlines()
+    # stmts = []
+    # DELIMITER = ';'
+    # stmt = ''
+
+    # for ln, line in enumerate(original_sql):
+    #     if line.startswith('--'):
+    #         continue
+
+    #     if not line.strip():
+    #         continue
+
+    #     if (DELIMITER not in line):
+    #         stmt += line.replace(DELIMITER, ';')
+    #         continue
+
+    #     if stmt:
+    #         stmt += line
+    #         stmts.append(stmt.strip())
+    #         stmt = ''
+    #     else:
+    #         stmts.append(line.strip())
+
+    # mh.revertdb(stmts)
+    # return
  
 if __name__=='__main__':
         start_tcp_server('127.0.0.1',6000)
